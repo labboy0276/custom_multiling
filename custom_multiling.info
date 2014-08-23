@@ -1,0 +1,13 @@
+name = Custom MultiLingual
+description = This module helps quickly change mode types, content types etc to elivate manual entry for multi-lingual setup
+package = Fiksu Custom
+core = 7.x
+version = 7.x-1.0-alpha9
+dependencies[] = ctools
+dependencies[] = translation
+dependencies[] = i18n
+dependencies[] = l10n_client
+dependencies[] = l10n_update
+dependencies[] = locale
+dependencies[] = title
+dependencies[] = entity_translation

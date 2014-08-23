@@ -1,0 +1,193 @@
+<?php
+
+function custom_multiling_enable() {
+
+	$admin_role = user_role_load_by_name('administrator');
+	$modules = array('locale','translation','i18n','i18n_block','i18n_variable', 'i18n_menu','i18n_node', 'i18n_string', 'l10n_client','l10n_update','title','entity_translation', 'i18n_panels');
+	foreach ($modules as $module) {
+		//check one more time if module is installed & enabled before perm set
+		if (!module_exists($module)) {
+			module_enable(array($module), TRUE);
+		}
+		//setup permissions
+		switch($module) {
+			case 'locale':
+				user_role_grant_permissions($admin_role->rid, array('administer languages','translate interface'),'locale');
+				break;
+			case 'translation':
+				user_role_grant_permissions($admin_role->rid, array('translate content'),'translation');
+				break;
+			case 'l10n_client':
+				user_role_grant_permissions($admin_role->rid, array('use on-page translation','submit translations to localization server'),'l10n_client');
+				break;
+			case 'l10n_update':
+				user_role_grant_permissions($admin_role->rid, array('translate interface'),'l10n_update');
+				break;
+			case 'i18n': //makes sure admin site config is enabled for admins, which it should be
+				user_role_grant_permissions($admin_role->rid, array('administer site configuration'),'system');
+				break;
+			case 'i18n_node':
+				user_role_grant_permissions($admin_role->rid, array('administer content translations'),'i18n_node');
+				break;
+			case 'entity_translation':
+				user_role_grant_permissions($admin_role->rid, array('administer entity translation','toggle field translatability','translate any entity'),'entity_translation');
+				break;
+			case 'i18n_string':
+				user_role_grant_permissions($admin_role->rid, array('translate user-defined strings','translate admin strings'),'i18n_string');
+				break;
+		}
+	}
+
+	//grab all languages if need be to be used in this module
+	$languages = db_query('SELECT language FROM {languages}')->fetchAll();
+
+	//setup content types
+	$node_type = db_query('SELECT type FROM {node_type} WHERE base = :base', array(':base' => 'node_content'))->fetchAll();
+	foreach ($node_type as $key) {
+		$publish_type = 'language_content_type_' . $key->type;
+		$node_type_setting = db_query('SELECT value FROM {variable} WHERE name = :name', array(':name' => $publish_type))->fetchField();
+		$value = unserialize($node_type_setting);
+		//set to 2 for Enabled - With Translation
+		if ($value != '2') {
+			$value = '2';
+			db_update('variable')
+	    ->fields(array('value' => serialize($value)))
+	    ->condition('name', $publish_type)
+	    ->execute();
+		}
+		$multi_setting = 'i18n_node_options_' . $key->type;
+		$multi_record = db_query('SELECT value FROM {variable} WHERE name = :name', array(':name' => $multi_setting))->fetchField();
+		$multi_value = unserialize($multi_record);
+		$change = FALSE;
+		//set to Set current language as default for new content & Require language (Do not allow Language Neutral).
+		if(!empty($multi_value)) {
+			if ($multi_value[0] != 'current') {
+				$multi_value[0] = 'current';
+				$change = TRUE;
+			}
+			if ($multi_value[1] != 'required') {
+				$multi_value[1] = 'required';
+				$change = TRUE;
+			}
+			if ($change) {
+				db_update('variable')
+		    ->fields(array('value' => serialize($multi_value)))
+		    ->condition('name', $multi_setting)
+		    ->execute();
+			} 
+		} else {
+			$multi_value = array('0' => 'current', '1' => 'required');
+			db_insert('variable')
+		    ->fields(array(
+		      'value' => serialize($multi_value),
+		      'name' => $multi_setting,
+		    ))
+			  ->execute();
+		}
+	}
+
+	//setup nodes to display english not language neutral
+	$nodes = db_query('SELECT nid FROM {node} WHERE language = :lang', array(':lang' => 'und'))->fetchAll();
+	foreach ($nodes as $key) {
+		$nid = $key->nid;
+		db_update('node')
+	    ->fields(array('language' => 'en'))
+	    ->condition('nid', $nid)
+	    ->execute();
+	}
+
+	//update taxonomy, FPP, etc in the entity translation table to display english not language neutral
+	$vocab = db_query('SELECT vid FROM {taxonomy_vocabulary} WHERE language = :lang', array(':lang' => 'und'))->fetchAll();
+	foreach ($vocab as $key) {
+		$vid = $key->vid;
+		db_update('taxonomy_vocabulary')
+	    ->fields(array('language' => 'en'))
+	    ->condition('vid', $vid)
+	    ->execute();
+	}
+
+	$term = db_query('SELECT tid FROM {taxonomy_term_data} WHERE language = :lang', array(':lang' => 'und'))->fetchAll();
+	foreach ($term as $key) {
+		$tid = $key->tid;
+		db_update('taxonomy_term_data')
+	    ->fields(array('language' => 'en'))
+	    ->condition('tid', $tid)
+	    ->execute();
+	}
+
+	$entities = db_query('SELECT entity_id FROM {entity_translation} WHERE language = :lang', array(':lang' => 'und'))->fetchAll();
+	foreach ($entities as $key) {
+		$eid = $key->entity_id;
+		db_update('entity_translation')
+	    ->fields(array('language' => 'en'))
+	    ->condition('entity_id', $eid)
+	    ->execute();
+	}
+
+
+	//Adjust redirects for english only
+	$redirects = db_query('SELECT rid FROM {redirect} WHERE language = :lang', array(':lang' => 'und'))->fetchAll();
+	foreach ($redirects as $key) {
+		$rid = $key->rid;
+		db_update('redirect')
+	    ->fields(array('language' => 'en'))
+	    ->condition('rid', $rid)
+	    ->execute();
+	}
+
+	//Setup blocks for translation
+	$blocks = db_query('SELECT module,delta FROM {block} WHERE i18n_mode = :mode', array(':mode' => 0))->fetchAll();
+	foreach ($blocks as $key) {
+		$bid = $key->module;
+		$bdel = $key->delta;
+		db_update('block')
+	    ->fields(array('i18n_mode' => 1))
+	    ->condition('module', $bid)
+	    ->execute();
+	  $block_lang = db_query('SELECT delta FROM {i18n_block_language}')->fetchAll();
+	  $block_check = array();
+	  foreach ($block_lang as $key) {
+	  	$block_check[] = $key->delta;
+	  }
+	 	if (!in_array($bdel, $block_check)) {
+	  	foreach ($languages as $key) {
+				db_insert('i18n_block_language')
+			    ->fields(array(
+			      'module' => $bid,
+			      'delta' => $bdel,
+			      'language' => $key->language,
+			    ))
+				 ->execute();
+			}
+	  }
+	}
+
+	//setup menus
+	$menus = db_query('SELECT menu_name FROM {menu_custom} WHERE i18n_mode = :mode', array(':mode' => 0))->fetchAll();
+	foreach ($menus as $key) {
+		$mid = $key->menu_name;
+		db_update('menu_custom')
+	    ->fields(array('i18n_mode' => 5))
+	    ->condition('menu_name', $mid)
+	    ->execute();
+	}
+
+	$menu_links = db_query('SELECT mlid FROM {menu_links} WHERE language = :lang', array(':lang' => 'und'))->fetchAll();
+	foreach ($menu_links as $key) {
+		$mlid = $key->mlid;
+		db_update('menu_links')
+	    ->fields(array('language' => 'en'))
+	    ->condition('mlid', $mlid)
+	    ->execute();
+	}
+
+	//FPP Entity Translation
+	$fpp = db_query('SELECT fpid FROM {fieldable_panels_panes} WHERE language = :lang', array(':lang' => 'und'))->fetchAll();
+	foreach ($fpp as $key) {
+		$fpid = $key->fpid;
+		db_update('fieldable_panels_panes')
+	    ->fields(array('language' => 'en'))
+	    ->condition('fpid', $fpid)
+	    ->execute();
+	}
+}
