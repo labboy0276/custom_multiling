@@ -3,7 +3,7 @@
 function custom_multiling_enable() {
 
 	$admin_role = user_role_load_by_name('administrator');
-	$modules = array('locale','translation','i18n','i18n_block','i18n_variable', 'i18n_menu','i18n_node', 'i18n_string', 'l10n_client','l10n_update','title','entity_translation', 'i18n_panels');
+	$modules = array('locale','translation','i18n','i18n_block','i18n_variable', 'i18n_menu','i18n_node', 'i18n_string', 'i18n_path', 'l10n_client','l10n_update','title','entity_translation', 'i18n_panels');
 	foreach ($modules as $module) {
 		//check one more time if module is installed & enabled before perm set
 		if (!module_exists($module)) {

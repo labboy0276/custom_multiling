@@ -1,0 +1,17 @@
+diff --git a/plugins/content_types/custom/custom.inc b/plugins/content_types/custom/custom.inc
+index 37751dd..4853feb 100755
+--- a/plugins/content_types/custom/custom.inc
++++ b/plugins/content_types/custom/custom.inc
+@@ -170,12 +170,6 @@ function ctools_custom_content_type_editable($content_type, $subtype, $conf) {
+ function ctools_custom_content_type_render($subtype, $conf, $args, $contexts) {
+   $settings = ctools_custom_content_type_get_conf(ctools_custom_content_type_content_type($subtype), $conf);
+ 
+-  if (module_exists('i18n_content_pane')) {
+-    $translation = i18n_content_pane_translate($settings['content']);
+-    $translation = array_filter((array)$translation);
+-    $settings = array_merge($settings, $translation);
+-  }
+-
+   static $delta = 0;
+ 
+   $block          = new stdClass();
