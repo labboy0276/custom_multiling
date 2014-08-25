@@ -190,4 +190,22 @@ function custom_multiling_enable() {
 	    ->condition('fpid', $fpid)
 	    ->execute();
 	}
+
+	/* views - add filter for current language
+	* @todo
+	* THIS IS JUST THE BASE CODE TO POSSIBLY CHANGE A VIEW
+	* WHEN WE HAVE A UIFOR THE CHECKLIST WE CAN HAVE THE USERS CHOOSE
+	* RIGHT NOW ITS TOO RISKY TO DO ALL
+	*
+	*
+	* $views = views_get_all_views();
+	* $view = views_get_view($view_name, TRUE);
+	* Filter criterion: Content: Language 
+	* $handler->display->display_options['filters']['language']['id'] = 'language';
+  * $handler->display->display_options['filters']['language']['table'] = 'node';
+  * $handler->display->display_options['filters']['language']['field'] = 'language';
+  * $handler->display->display_options['filters']['language']['value'] = array(
+  *   '***CURRENT_LANGUAGE***' => '***CURRENT_LANGUAGE***',
+  * );
+	* views_save_view($view); */
 }
